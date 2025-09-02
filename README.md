@@ -1,16 +1,14 @@
-# NI-DAQmx
+# NeuroLayer
 
-![ni-daqmx-screenshot](https://open-ephys.github.io/gui-docs/_images/nidaqmx-01.png)
-
-Streams analog and digital data from National Instruments (NI) hardware. Use multiple instances of this plugin to acquire data from several PXI-, PCI-, and/or USB-based NI devices simultaneously. Can be used in tandem with the Neuropix-PXI plugin, to read in analog and digital inputs in parallel with Neuropixels data.
+Acquire data using one of the NeuroLayer probes developped by the Haesler lab. 
 
 ## Installation (currently Windows only)
 
-This plugin can be added via the Open Ephys GUI's built-in Plugin Installer. Press **ctrl-P** or **⌘P** to open the Plugin Installer, browse to "NI-DAQmx", and click the "Install" button. The NI-DAQmx plugin should now be available to use.
+*TBD*
 
 ## Usage
 
-Instructions for using the NI-DAQmx Plugin are available [here](https://open-ephys.github.io/gui-docs/User-Manual/Plugins/NIDAQmx.html).
+Instructions for using the plugin are available ... (*TBD*).
 
 ##### Important Note: Syncing analog and digital channels only works with NI devices that support correlated (hardware-timed) digital I/O (see docs above).
 
@@ -18,7 +16,7 @@ Instructions for using the NI-DAQmx Plugin are available [here](https://open-eph
 
 First, follow the instructions on [this page](https://open-ephys.github.io/gui-docs/Developer-Guide/Compiling-the-GUI.html) to build the Open Ephys GUI.
 
-**Important:** This plugin is intended for use with the latest version of the GUI (0.6.0 and higher). The GUI should be compiled from the [`main`](https://github.com/open-ephys/plugin-gui/tree/main) branch, rather than the former `master` branch.
+**Important:** This plugin is intended for use with the latest version of the GUI (1.0.0 and higher). The GUI should be compiled from the [`main`](https://github.com/open-ephys/plugin-gui/tree/main) branch, rather than the former `master` branch.
 
 Then, clone this repository into a directory at the same level as the `plugin-GUI`, e.g.:
 
@@ -29,8 +27,8 @@ Code
 │   ├── Source
 │   └── ...
 ├── OEPlugins
-│   └── ni-daqmx
-│       ├── Build
+│   └── NeuroLayerOEPlugin
+│       ├── Builds
 │       ├── Source
 │       └── ...
 ```
@@ -54,6 +52,6 @@ Selecting the `INSTALL` project and manually building it will copy the `.dll` an
 
 ## Attribution
 
-This plugin was created by Pavel Kulik at the Allen Institute for Neural Dynamics. 
+This plugin was created by Marine Guyot for the VIB Haesler lab. It is inspired from the NIDAQX plugin developped by Open-Ephys team. 
 
-If you need help getting this plugin to work with your hardware, please contact Pavel at pavel@open-ephys.org. 
+If you need help getting this plugin to work with your hardware, please contact Marine at marine@codingresearcher.com. 
