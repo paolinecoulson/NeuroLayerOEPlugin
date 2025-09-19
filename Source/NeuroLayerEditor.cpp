@@ -23,10 +23,69 @@
  */
 
 #include "NeuroLayerEditor.h"
+#include "NeuroLayerThread.h"
 
-NeuroLayerEditor::NeuroLayerEditor (GenericProcessor* parentNode, NeuroLayer* plugin)
-    : GenericEditor (parentNode)
+NeuroLayerEditor::NeuroLayerEditor(GenericProcessor* parentNode, NeuroLayer* thread)
+    : GenericEditor(parentNode), thread(thread)
 {
-    desiredWidth = 150; // sets the width of the plugin editor
-    this->thread = thread;
+    desiredWidth = 200;
+    setupUI();
+
+}
+
+void NeuroLayerEditor::setupUI()
+{
+    voltageRangeSelector = new ComboBox("Voltage Range");
+    voltageRangeSelector->addListener(this);
+    addAndMakeVisible(voltageRangeSelector.get());
+    voltageRangeSelector->setBounds(15, 50, 100, 20);
+
+    // Config File Button
+    configFileButton = new TextButton("Select Config File");
+    configFileButton->addListener(this);
+    addAndMakeVisible(configFileButton.get());
+    configFileButton->setBounds(15, 80, 150, 20);
+
+    configFileLabel = new Label();
+    addAndMakeVisible(configFileLabel.get());
+    configFileLabel->setBounds(15, 105, 200, 20);
+}
+
+void NeuroLayerEditor::comboBoxChanged(ComboBox* comboBoxThatChanged)
+{
+    if (thread != nullptr && comboBoxThatChanged == voltageRangeSelector.get())
+    {
+        int selectedId = voltageRangeSelector->getSelectedId();
+        thread->setVoltageRange(selectedId); // Map 1->1V, 2->5V, 3->10V in your processor
+        CoreServices::updateSignalChain (this);
+    }
+}
+
+void NeuroLayerEditor::buttonClicked(Button* button)
+{
+    if (button == configFileButton.get())
+    {
+        FileChooser chooser("Select Config File",
+                            File::getSpecialLocation(File::userHomeDirectory),
+                            "*.json");
+
+        if (chooser.browseForFileToOpen())
+        {
+            File configFile = chooser.getResult();
+            configFileLabel->setText(configFile.getFileName(), dontSendNotification);
+            if (thread != nullptr)
+                thread->setConfigFile(configFile); // processor handles parsing
+
+                auto voltage_range = thread->getVoltageRange();
+                voltageRangeSelector->clear(); 
+
+                for(int i=0; i<voltage_range.size(); i++){
+                LOGD ("voltage rang: " + std::to_string (voltage_range[i]));
+                voltageRangeSelector->addItem ("-" + std::to_string (voltage_range[i]) + " to " + std::to_string (voltage_range[i]) + " V", i);
+                }
+                voltageRangeSelector->setSelectedId(1); 
+                CoreServices::updateSignalChain (this);
+        }
+
+    }
 }

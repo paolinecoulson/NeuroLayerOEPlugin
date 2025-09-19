@@ -27,9 +27,11 @@
 
 #include <EditorHeaders.h>
 
-#include "NeuroLayer.h"
+#include "NeuroLayerThread.h"
 
-class NeuroLayerEditor : public GenericEditor
+class NeuroLayerEditor : public GenericEditor, 
+                         public ComboBox::Listener, 
+                         public Button::Listener
 {
 public:
     /** The class constructor, used to initialize any members. */
@@ -38,10 +40,23 @@ public:
     /** The class destructor, used to deallocate memory */
     ~NeuroLayerEditor() {}
 
-private:
+    void buttonClicked(juce::Button* button) override;
+    void comboBoxChanged(juce::ComboBox* comboBoxThatChanged) override;
 
-    /** A pointer to the underlying NeuroLayer */
-    NeuroLayer* thread;
+private:
+    NeuroLayer* thread = nullptr;
+
+    ScopedPointer<ComboBox> voltageRangeSelector;
+    juce::Label voltageLabel;
+
+    ScopedPointer<juce::TextButton> configFileButton;
+    ScopedPointer <juce::Label> configFileLabel;
+
+    juce::File configFile;
+
+    void setupUI();
+    
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (NeuroLayerEditor);
 };
 
 #endif
