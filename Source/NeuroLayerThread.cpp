@@ -142,11 +142,20 @@ bool NeuroLayer::startAcquisition()
 
 bool NeuroLayer::updateBuffer()
 {
+
+
     return true;
 }
 
 bool NeuroLayer::stopAcquisition()
 {
+    if (! processor)
+        return false;
+
+    if (processor->isThreadRunning())
+    {
+        processor->signalThreadShouldExit();
+    }
     return true;
 }
 
@@ -192,7 +201,7 @@ Array<float> NeuroLayer::getVoltageRange()
     if (! processor)
         return Array<float>();
 
-    return processor->getVoltageRange();
+    return processor->getAllVoltageRange();
 
 }
 
@@ -204,7 +213,6 @@ void NeuroLayer::setConfigFile (File config)
     NeuroConfig parsedConfig;
     parseNeuroConfig (parsedConfig, config);
     processor = std::make_unique<NeuroProcessor> (parsedConfig);
-    LOGD (processor->getCellNumber())
     sourceBuffers.add (new DataBuffer (processor->getCellNumber(), 10000));
     processor->aiBuffer = sourceBuffers.getLast();
     sourceStreams.clear();

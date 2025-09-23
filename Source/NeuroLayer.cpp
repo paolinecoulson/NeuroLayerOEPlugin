@@ -40,34 +40,50 @@ NeuroProcessor::NeuroProcessor(NeuroConfig& cfg)
     // --- Setup AI Devices (columns) ---
     // Each column corresponds to one PXI module with all its lines
     int maxColumnsPerStation = 0;
+    int dev_index = 0;
 
     for (const auto& col : cfg.neuroLayerSystem.columns)
     {
+        
         const String moduleName = std::get<0>(col); // PXI module name
         LOGD("want to add new AI device " + moduleName)
         juce::StringArray analogLines;
 
         analogLines =  std::get<1>(col);
+
         maxColumnsPerStation = std::max(maxColumnsPerStation, int(analogLines.size()));
 
-        auto* aiDevice = new InputAIChannel (moduleName, analogLines);
+        auto* aiDevice = new InputAIChannel (moduleName, analogLines, dev_index);
         aiDevice->configure();
         AIdevices.add(aiDevice);
         numProbeColumn += int (analogLines.size());
+
+        dev_index+=1;
     }
 
-    
+     // --- Compute Sample Rate ---
+    // Take the minimum sample rate among columns if columns have different numbers of lines
+    sampleRate = 500000.0 / maxColumnsPerStation;
+
+    for (const auto& dev : AIdevices)
+    {
+        dev->setSampleRate (sampleRate);
+    }
+
+    dev_index = 0;
 
     // --- Setup DI Devices (rows) ---
     for (const auto& row : cfg.neuroLayerSystem.rows)
     {
         const String moduleName = std::get<0>(row);
-        juce::StringArray portName =  std::get<1>(row);
-        auto* diDevice = new InputDIChannel(moduleName, portName);
+        juce::String portName =  std::get<1>(row);
+        auto* diDevice = new InputDIChannel(moduleName, portName, dev_index, cfg.neuroLayerSystem.numRows);
         diDevice->configure();
+        diDevice->setSampleRate (sampleRate);
         DIdevices.add(diDevice);
-        numProbeRow += 8;
+        dev_index+=1;
     }
+    numProbeRow = cfg.neuroLayerSystem.numRows;
 
     // --- Setup Event Devices ---
     for (const auto& evt : cfg.eventInputs)
@@ -76,6 +92,7 @@ NeuroProcessor::NeuroProcessor(NeuroConfig& cfg)
         const String digitalLine = evt.digital_line;
         auto* evDevice = new EventDIChannel(moduleName, digitalLine);
         evDevice->configure();
+        evDevice->setSampleRate (sampleRate);
         eventDevices.add(evDevice);
     }
 
@@ -84,11 +101,8 @@ NeuroProcessor::NeuroProcessor(NeuroConfig& cfg)
                                     cfg.startEventOutput.digital_line);
     
     startDevice->configure();
+    startDevice->setSampleRate (sampleRate);
 
-    // --- Compute Sample Rate ---
-    // Take the minimum sample rate among columns if columns have different numbers of lines
-
-    sampleRate = 500000 / maxColumnsPerStation;
 
     // --- Default Voltage Range ---
     if (!AIdevices.isEmpty())
@@ -140,56 +154,8 @@ void Channel::configure()
 
     // Get available voltage ranges
     voltageRanges.clear();
-    LOGD ("Detected voltage ranges: \n");
-    for (int i = 0; i < 512; i += 2)
-    {
-        NIDAQ::float64 vmin = data[i];
-        NIDAQ::float64 vmax = data[i + 1];
-
-        if (vmin == vmax || abs (vmin) < 1e-10 || vmax < 1e-2)
-            break;
-
-        voltageRanges.add (vmax);
-    }
-
-    /*char ai_channel_data[2048];
-    NIDAQ::DAQmxGetDevAIPhysicalChans (STR2CHR (name_), &ai_channel_data[0], sizeof (ai_channel_data));
-
-    StringArray channel_list;
-    channel_list.addTokens (&ai_channel_data[0], ", ", "\"");
-
-    LOGD ("Detected ", channel_list.size(), " analog input channels");
-
-    for (int i = 0; i < channel_list.size(); i++)
-    {
-        if (channel_list[i].length() > 0)
-        {
-            String name = channel_list[i].toRawUTF8();
-            LOGD ("Adding analog input channel: ", name);
-        }
-    }
-
-    // Get Digital Input Channels
-
-    char di_channel_data[2048];
-    NIDAQ::DAQmxGetDevDILines (STR2CHR (deviceName), &di_channel_data[0], sizeof (di_channel_data)); // gets ports on line
-    LOGD ("Found digital inputs: ");
-
-    channel_list.clear();
-    channel_list.addTokens (&di_channel_data[0], ", ", "\"");
-
-    for (int i = 0; i < channel_list.size(); i++)
-    {
-        StringArray channel_type;
-        channel_type.addTokens (channel_list[i], "/", "\"");
-        if (channel_list[i].length() > 0)
-        {
-            String fullName = channel_list[i].toRawUTF8();
-
-            String lineName = fullName.fromFirstOccurrenceOf ("/", false, false);
-            String portName = fullName.upToLastOccurrenceOf ("/", false, false);
-        }
-    }*/
+    voltageRanges = { 0.1, 0.2, 0.5, 1, 2, 5, 10 };
+    
 }
 
 void NeuroProcessor::run()
@@ -198,73 +164,88 @@ void NeuroProcessor::run()
     /********CONFIG ANALOG CHANNELS********/
     /**************************************/
     /* Create an analog input task */
-
-    for (int dev_i = 0; dev_i < AIdevices.size(); dev_i++)
+    try
     {
-        AIdevices[dev_i]->setup(voltageRangeIndex);
+
+        for (int dev_i = 0; dev_i < AIdevices.size(); dev_i++)
+        {
+            AIdevices[dev_i]->setup (voltageRangeIndex);
+        }
+
+        // Master: internal clock
+        auto trigName = AIdevices[0]->getClock ("PXI_Trig0", getNsample() * CHANNEL_BUFFER_SIZE * 10);
+
+        // Slaves: use master’s clock
+        for (int dev_i = 1; dev_i < AIdevices.size(); dev_i++)
+        {
+            AIdevices[dev_i]->setClock (trigName, getNsample() * CHANNEL_BUFFER_SIZE * 10);
+        }
+
+        /************************************/
+        /********CONFIG DIGITAL LINES********/
+        /************************************/
+  
+        for (int dev_i = 0; dev_i < DIdevices.size(); dev_i++)
+        {
+            DIdevices[dev_i]->setup (trigName, CHANNEL_BUFFER_SIZE * getNsample(), DIdevices.size());
+        }
+
+        for (int dev_i = 0; dev_i < eventDevices.size(); dev_i++)
+        {
+            eventDevices[dev_i]->setup (trigName, getNsample() * CHANNEL_BUFFER_SIZE * 10);
+        }
+        startDevice->setup (trigName, 0.1);
+    }
+    catch (const std::exception& e)
+    {
+        LOGD ("Failed to setup the device: ");
+        LOGD (e.what());
     }
 
-    // Master: internal clock
-    auto trigName = AIdevices[0]->getClock ("PXI_Trig0");
-
-    // Slaves: use master’s clock
-    for (int dev_i = 0; dev_i < AIdevices.size(); dev_i++)
+    try
     {
-        AIdevices[dev_i]->setClock (trigName, getNsample() * CHANNEL_BUFFER_SIZE * 10);
-    }
+        // This order is necessary to get the timing right
+         for (auto& device : AIdevices)
+        {
+            device->control();
+        }
 
-    /************************************/
-    /********CONFIG DIGITAL LINES********/
-    /************************************/
-    for (int dev_i = 0; dev_i < DIdevices.size(); dev_i++)
+        for (auto& device : DIdevices)
+        {
+            device->control();
+        }
+
+        for (auto& device : eventDevices)
+        {
+            device->control();
+        }
+
+        startDevice->control();
+
+        for (auto& device : DIdevices)
+        {
+            device->start();
+        }
+
+        for (auto& device : eventDevices)
+        {
+            device->start();
+        }
+
+        startDevice->start();
+
+        for (int i = 1; i < AIdevices.size(); i++)
+        {
+            AIdevices[i]->start();
+        }
+
+        AIdevices[0]->start();
+    }
+    catch (const std::exception& e)
     {
-        DIdevices[dev_i]->setup (trigName, CHANNEL_BUFFER_SIZE * getNsample());
+        LOGD ("Failed to start the device: ");
+        LOGD (e.what());
     }
-
-    for (int dev_i = 0; dev_i < eventDevices.size(); dev_i++)
-    {
-        eventDevices[dev_i]->setup (trigName, getNsample() * CHANNEL_BUFFER_SIZE * 10);
-    }
-
-    startDevice->setup (trigName, 0.1);
-
-    // This order is necessary to get the timing right
-    for (auto& device : AIdevices)
-    {
-        device->control();
-    }
-
-    for (auto& device : DIdevices)
-    {
-        device->control();
-    }
-
-    for (auto& device : eventDevices)
-    {
-        device->control();
-    }
-
-    startDevice->control();
-
-    for (auto& device : DIdevices)
-    {
-        device->start();
-    }
-
-    for (auto& device : eventDevices)
-    {
-        device->start();
-    }
-
-    startDevice->start();
-
-    for (int i = 1; i < AIdevices.size(); i++)
-    {
-        AIdevices[i]->start();
-    }
-
-    AIdevices[0]->start();
-
     double ts;
 
     ai_timestamp = 0;
@@ -274,56 +255,62 @@ void NeuroProcessor::run()
     LOGD ("Start acquisition");
 
     int numDevices = AIdevices.size();
-    int nbr_channel = numProbeColumn * numDevices * numProbeRow;
+    int nbr_channel = numProbeColumn * numProbeRow;
     juce::uint64 eventCode = 0;
-    int buffer_size = numProbeColumn * CHANNEL_BUFFER_SIZE * getNsample();
-
-    while (! threadShouldExit())
+    try
     {
-        HeapBlock<float> output;
-        output.allocate (nbr_channel, true);
-        std::vector<std::vector<NIDAQ::float64>> dev_ai_data (AIdevices.size());
-        std::vector<std::vector<NIDAQ::uInt32>> dev_di_event (eventDevices.size());
-
-        for (size_t i = 0; i < numDevices; ++i)
+        while (! threadShouldExit())
         {
-            AIdevices[i]->acquire (dev_ai_data[i], buffer_size);
-        }
 
-        for (size_t i = 0; i < eventDevices.size(); ++i)
-        {
-            eventDevices[i]->acquire (dev_di_event[i], getNsample() * CHANNEL_BUFFER_SIZE);
-        }
-
-        for (int nsample = 0; nsample < getNsample(); ++nsample)
-        {
-            int writeIdx = 0;
-            for (int station = 0; station < numDevices; ++station)
+            HeapBlock<float> output;
+            output.allocate (nbr_channel, true);
+            std::vector<std::vector<NIDAQ::float64>> dev_ai_data (numDevices);
+            std::vector<std::vector<NIDAQ::uInt32>> dev_di_event (eventDevices.size());
+            
+             for (size_t i = 0; i < numDevices; ++i)
             {
-                for (int analogch = 0; analogch < (numProbeColumn); ++analogch)
-                {
-                    for (int ch = 0; ch < numProbeRow; ch++)
-                        output[writeIdx++] = dev_ai_data[station][ch + analogch * numProbeRow * getNsample() + nsample * numProbeRow]; // step per sample
-                }
+                AIdevices[i]->acquire (&dev_ai_data[i], CHANNEL_BUFFER_SIZE * getNsample());
             }
 
-            for (size_t i = 0; i < eventDevices.size(); ++i)
+             for (size_t i = 0; i < eventDevices.size(); ++i)
             {
-                bool isActive = std::accumulate (
-                                    dev_di_event[i].begin() + nsample * CHANNEL_BUFFER_SIZE,
-                                    dev_di_event[i].begin() + (nsample + 1) * CHANNEL_BUFFER_SIZE,
-                                    0.0)
-                                > 0;
-
-                if (isActive)
-                {
-                    eventCode |= (1 << i); // set the i-th bit
-                }
+                eventDevices[i]->acquire (&dev_di_event[i], getNsample() * CHANNEL_BUFFER_SIZE);
             }
+             for (int nsample = 0; nsample < getNsample(); ++nsample)
+            {
+                int writeIdx = 0;
+                for (int station = 0; station < numDevices; ++station)
+                {
+                    for (int analogch = 0; analogch < AIdevices[station]->analogLines_.size(); ++analogch)
+                    {
+                        for (int ch = 0; ch < DIdevices[station]->numLines_; ch++)
+                            output[writeIdx++] = dev_ai_data[station][ch + analogch * numProbeRow * getNsample() + nsample * numProbeRow]; // step per sample
+                    }
+                }
 
-            ai_timestamp++;
-            aiBuffer->addToBuffer (output, &ai_timestamp, &ts, &eventCode, 1);
+                for (size_t i = 0; i < eventDevices.size(); ++i)
+                {
+                    bool isActive = std::accumulate (
+                                        dev_di_event[i].begin() + nsample * CHANNEL_BUFFER_SIZE,
+                                        dev_di_event[i].begin() + (nsample + 1) * CHANNEL_BUFFER_SIZE,
+                                        0.0)
+                                    > 0;
+
+                    if (isActive)
+                    {
+                        eventCode |= (1 << i); // set the i-th bit
+                    }
+                }
+
+                ai_timestamp++;
+                aiBuffer->addToBuffer (output, &ai_timestamp, &ts, &eventCode, 1);
+            }
         }
+    }
+        catch (const std::exception& e)
+    {
+        LOGD ("Error during acquisition: ");
+        LOGD (e.what());
     }
     // fflush(stdout);
 

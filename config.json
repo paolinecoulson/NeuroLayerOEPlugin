@@ -1,0 +1,23 @@
+{
+  "neuroLayerSystem": {
+    "columns": [["PXI2Slot2","ai0"], ["PXI2Slot2","ai1"],["PXI2Slot2","ai2"], ["PXI2Slot2","ai3"], ["PXI2Slot2","ai4"], ["PXI2Slot2","ai5"],["PXI2Slot2","ai6"], ["PXI2Slot2","ai7"],
+              ["PXI2Slot3","ai0"], ["PXI2Slot3","ai1"],["PXI2Slot3","ai2"], ["PXI2Slot3","ai3"], ["PXI2Slot3","ai4"], ["PXI2Slot3","ai5"],["PXI2Slot3","ai6"], ["PXI2Slot3","ai7"],
+              ["PXI2Slot4","ai0"], ["PXI2Slot4","ai1"],["PXI2Slot4","ai2"], ["PXI2Slot4","ai3"], ["PXI2Slot4","ai4"], ["PXI2Slot4","ai5"],["PXI2Slot4","ai6"], ["PXI2Slot4","ai7"]],
+    "rows": [["PXI2Slot2","Port0"], ["PXI2Slot3","Port0"], ["PXI2Slot4","Port0"]],
+    "numRows": 8
+  },
+  "start_event_output": {
+    "start_time": 2,
+    "nbr_pulse": 2,
+    "pulse_duration": 2,
+    "module_name": "PXI2Slot5",
+    "digital_line": "Port0/line7"
+  },
+  "event_input": [
+    {
+      "module_name": "PXI2Slot5",
+      "digital_line": "Port0/line8",
+      "oe_event_label": 2
+    }
+  ]
+}
