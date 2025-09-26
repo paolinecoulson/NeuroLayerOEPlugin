@@ -35,10 +35,15 @@ NeuroLayerEditor::NeuroLayerEditor(GenericProcessor* parentNode, NeuroLayer* thr
 
 void NeuroLayerEditor::setupUI()
 {
+    voltageLabel = new Label ();
+    addAndMakeVisible (voltageLabel.get());
+    voltageLabel->setText ("Voltage range:", dontSendNotification);
+    voltageLabel->setBounds (10, 50, 100, 20);
+
     voltageRangeSelector = new ComboBox("Voltage Range");
     voltageRangeSelector->addListener(this);
     addAndMakeVisible(voltageRangeSelector.get());
-    voltageRangeSelector->setBounds(15, 50, 100, 20);
+    voltageRangeSelector->setBounds(105, 50, 90, 20);
 
     // Config File Button
     configFileButton = new TextButton("Select Config File");
@@ -56,7 +61,7 @@ void NeuroLayerEditor::comboBoxChanged(ComboBox* comboBoxThatChanged)
     if (thread != nullptr && comboBoxThatChanged == voltageRangeSelector.get())
     {
         int selectedId = voltageRangeSelector->getSelectedId();
-        thread->setVoltageRange(selectedId); // Map 1->1V, 2->5V, 3->10V in your processor
+        thread->setVoltageRange(selectedId); 
         CoreServices::updateSignalChain (this);
     }
 }
@@ -80,8 +85,7 @@ void NeuroLayerEditor::buttonClicked(Button* button)
                 voltageRangeSelector->clear(); 
 
                 for(int i=0; i<voltage_range.size(); i++){
-                LOGD ("voltage rang: " + std::to_string (voltage_range[i]));
-                voltageRangeSelector->addItem ("-" + std::to_string (voltage_range[i]) + " to " + std::to_string (voltage_range[i]) + " V", i);
+                    voltageRangeSelector->addItem ("-" + String(voltage_range[i]) + " to " +  String(voltage_range[i]) + " V", i);
                 }
                 voltageRangeSelector->setSelectedId(1); 
                 CoreServices::updateSignalChain (this);

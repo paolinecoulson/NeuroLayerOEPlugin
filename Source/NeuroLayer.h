@@ -104,7 +104,7 @@ public:
 
     virtual void stop()
     {
-        if (taskHandle_ != 0)
+        if (taskHandle_)
         {
             NIDAQ::DAQmxStopTask(taskHandle_);
             NIDAQ::DAQmxClearTask(taskHandle_);
@@ -269,8 +269,8 @@ private:
 class EventDIChannel : public Channel
 {
 public:
-    EventDIChannel(String name, String digitalLine)
-        : Channel(name, 0), digitalLine_(digitalLine) {}
+    EventDIChannel(String name, String digitalLine, int event_label)
+        : Channel(name, 0), digitalLine_(digitalLine), event_label_(event_label) {}
 
     void setup(const std::string& trigName, int buffer)
     {
@@ -303,10 +303,12 @@ public:
             nullptr,
             nullptr));
     }
+    int event_label_ = 0;
 
 private:
     String digitalLine_;
     NIDAQ::float64 timeout_ = 10.0;
+    
 };
 
 /* ================================================================
@@ -315,17 +317,16 @@ private:
 class StartChannel : public Channel
 {
 public:
-    StartChannel(String name, String digitalLine)
-        : Channel(name, 0), digitalLine_(digitalLine) {}
+    StartChannel (String name, String digitalLine, float start_time, int nbr_pulse, float pulse_duration)
+        : Channel(name, 0), digitalLine_(digitalLine), start_time_(start_time), nbr_pulse_(nbr_pulse), pulse_duration_(pulse_duration) {}
 
-    void setup(const std::string& trigName, float pulse_length)
+    void setup(const std::string& trigName)
     {
         NIDAQ::float64 timeout = 5.0;
-        pulse_length = pulse_length * getSampleRate();
-        LOGD (pulse_length);
-        LOGD (getSampleRate());
+        float pulse_length = pulse_duration_ * getSampleRate();
+        float pulse_start_length = start_time_ * getSampleRate();
 
-        std::vector<NIDAQ::uInt32> waveform_start(pulse_length * 5, 0);
+        std::vector<NIDAQ::uInt32> waveform_start (pulse_length * (nbr_pulse_ * 2 + 1) + pulse_start_length, 0);
 
         DAQmxCheck(NIDAQ::DAQmxCreateTask("StartPulseTask", &taskHandle_));
         DAQmxCheck(NIDAQ::DAQmxCreateDOChan(taskHandle_,
@@ -344,13 +345,13 @@ public:
 
         NIDAQ::uInt32 bitMask = static_cast<NIDAQ::uInt32>(1 << 8);
 
-        std::fill(waveform_start.begin() + pulse_length,
-                  waveform_start.begin() + 2 * pulse_length,
-                  bitMask);
+        for (int i = 0; i < nbr_pulse_; i++)
+        {
+                std::fill (waveform_start.begin() + pulse_start_length + pulse_length * (i * 2 + 1),
+                           waveform_start.begin() + pulse_start_length + (i * 2 + 2) * pulse_length,
+                           bitMask);
 
-        std::fill(waveform_start.begin() + pulse_length * 3,
-                  waveform_start.begin() + 4 * pulse_length,
-                  bitMask);
+        }
 
         int chunkSize = 62500;
         for (int i = 0; i < waveform_start.size(); i += chunkSize)
@@ -370,6 +371,9 @@ public:
 
 private:
     String digitalLine_;
+    float start_time_ = 0.0;
+    int nbr_pulse_ = 0;
+    float pulse_duration_ = 0.0;
 };
 
 
@@ -397,6 +401,30 @@ public:
     int getRowNumber() { return numProbeRow; };
     int getColumnNumber() { return numProbeColumn; };
     int getCellNumber() { return numProbeRow * numProbeColumn; };
+
+    void closeTask()
+    {
+        /*********************************************/
+        // DAQmx Stop Code
+        /*********************************************/
+        for (int dev_i = 0; dev_i < AIdevices.size(); dev_i++)
+        {
+            AIdevices[dev_i]->stop();
+        }
+
+        for (int dev_i = 0; dev_i < DIdevices.size(); dev_i++)
+        {
+            DIdevices[dev_i]->stop();
+        }
+
+        for (int dev_i = 0; dev_i < eventDevices.size(); dev_i++)
+        {
+            eventDevices[dev_i]->stop();
+        }
+
+        if (startDevice != 0 && startDevice != nullptr)
+            startDevice->stop();
+    };
 
     void run();
 

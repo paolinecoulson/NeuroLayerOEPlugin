@@ -47,8 +47,7 @@ private:
     NeuroLayer* thread = nullptr;
 
     ScopedPointer<ComboBox> voltageRangeSelector;
-    juce::Label voltageLabel;
-
+    ScopedPointer<juce::Label> voltageLabel;
     ScopedPointer<juce::TextButton> configFileButton;
     ScopedPointer <juce::Label> configFileLabel;
 

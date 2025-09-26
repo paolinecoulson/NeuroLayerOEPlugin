@@ -29,6 +29,7 @@
 NeuroProcessor::NeuroProcessor(NeuroConfig& cfg)
     : Thread("HaeslerProbe")
 {
+    closeTask();
     // Clear existing devices
     AIdevices.clear();
     DIdevices.clear();
@@ -46,7 +47,6 @@ NeuroProcessor::NeuroProcessor(NeuroConfig& cfg)
     {
         
         const String moduleName = std::get<0>(col); // PXI module name
-        LOGD("want to add new AI device " + moduleName)
         juce::StringArray analogLines;
 
         analogLines =  std::get<1>(col);
@@ -90,7 +90,7 @@ NeuroProcessor::NeuroProcessor(NeuroConfig& cfg)
     {
         const String moduleName = evt.name;
         const String digitalLine = evt.digital_line;
-        auto* evDevice = new EventDIChannel(moduleName, digitalLine);
+        auto* evDevice = new EventDIChannel (moduleName, digitalLine, evt.oe_event_label);
         evDevice->configure();
         evDevice->setSampleRate (sampleRate);
         eventDevices.add(evDevice);
@@ -98,7 +98,8 @@ NeuroProcessor::NeuroProcessor(NeuroConfig& cfg)
 
     // --- Setup Start Device ---
     startDevice = new StartChannel(cfg.startEventOutput.name,
-                                    cfg.startEventOutput.digital_line);
+                                   cfg.startEventOutput.digital_line, 
+                                   cfg.startEventOutput.start_time, cfg.startEventOutput.nbr_pulse, cfg.startEventOutput.pulse_duration);
     
     startDevice->configure();
     startDevice->setSampleRate (sampleRate);
@@ -166,7 +167,6 @@ void NeuroProcessor::run()
     /* Create an analog input task */
     try
     {
-
         for (int dev_i = 0; dev_i < AIdevices.size(); dev_i++)
         {
             AIdevices[dev_i]->setup (voltageRangeIndex);
@@ -184,7 +184,7 @@ void NeuroProcessor::run()
         /************************************/
         /********CONFIG DIGITAL LINES********/
         /************************************/
-  
+
         for (int dev_i = 0; dev_i < DIdevices.size(); dev_i++)
         {
             DIdevices[dev_i]->setup (trigName, CHANNEL_BUFFER_SIZE * getNsample(), DIdevices.size());
@@ -194,12 +194,14 @@ void NeuroProcessor::run()
         {
             eventDevices[dev_i]->setup (trigName, getNsample() * CHANNEL_BUFFER_SIZE * 10);
         }
-        startDevice->setup (trigName, 0.1);
+        startDevice->setup (trigName);
     }
     catch (const std::exception& e)
     {
+        closeTask();
         LOGD ("Failed to setup the device: ");
         LOGD (e.what());
+        return;
     }
 
     try
@@ -245,7 +247,10 @@ void NeuroProcessor::run()
     {
         LOGD ("Failed to start the device: ");
         LOGD (e.what());
+        closeTask();
+        return;
     }
+
     double ts;
 
     ai_timestamp = 0;
@@ -256,7 +261,7 @@ void NeuroProcessor::run()
 
     int numDevices = AIdevices.size();
     int nbr_channel = numProbeColumn * numProbeRow;
-    juce::uint64 eventCode = 0;
+    
     try
     {
         while (! threadShouldExit())
@@ -287,6 +292,7 @@ void NeuroProcessor::run()
                             output[writeIdx++] = dev_ai_data[station][ch + analogch * numProbeRow * getNsample() + nsample * numProbeRow]; // step per sample
                     }
                 }
+                juce::uint64 eventCode = 0;
 
                 for (size_t i = 0; i < eventDevices.size(); ++i)
                 {
@@ -298,7 +304,10 @@ void NeuroProcessor::run()
 
                     if (isActive)
                     {
-                        eventCode |= (1 << i); // set the i-th bit
+                        if (eventDevices[i]->event_label_ < 64)
+                            eventCode |= (juce::uint64 (1) << eventDevices[i]->event_label_); // cast avant le shift
+                        else
+                            LOGD ("Warning: cannot set event " + std::to_string(i) + " (exceeds the 64 possible events)");
                     }
                 }
 
@@ -311,28 +320,12 @@ void NeuroProcessor::run()
     {
         LOGD ("Error during acquisition: ");
         LOGD (e.what());
+        
     }
     // fflush(stdout);
+    closeTask();
 
-    /*********************************************/
-    // DAQmx Stop Code
-    /*********************************************/
-    for (int dev_i = 0; dev_i < AIdevices.size(); dev_i++)
-    {
-        AIdevices[dev_i]->stop();
-    }
 
-    for (int dev_i = 0; dev_i < DIdevices.size(); dev_i++)
-    {
-        DIdevices[dev_i]->stop();
-    }
-
-    for (int dev_i = 0; dev_i < eventDevices.size(); dev_i++)
-    {
-        eventDevices[dev_i]->stop();
-    }
-
-    startDevice->stop();
 
     return;
 }

@@ -7,9 +7,9 @@
     "numRows": 8
   },
   "start_event_output": {
-    "start_time": 2,
+    "start_time": 0.5,
     "nbr_pulse": 2,
-    "pulse_duration": 2,
+    "pulse_duration": 0.1,
     "module_name": "PXI2Slot5",
     "digital_line": "Port0/line7"
   },

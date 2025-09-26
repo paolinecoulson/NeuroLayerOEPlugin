@@ -18,9 +18,9 @@ struct NeuroLayerSystemConfig
 
 struct StartEventOutputConfig
 {
-    int start_time = 0;
+    float start_time = 0;
     int nbr_pulse = 0;
-    int pulse_duration = 0;
+    float pulse_duration = 0;
     juce::String name;
     juce::String digital_line;
 };
@@ -84,8 +84,6 @@ inline void  parseNeuroConfig (NeuroConfig& cfg , const File& configFile)
                         {
                             auto module = col[0].toString();
                             auto line   = col[1].toString();
-                            LOGD("module " + module);
-                            LOGD("line " + line);
                             cfg.neuroLayerSystem.columns[module].add (line);
                         }
                     }
@@ -126,9 +124,9 @@ inline void  parseNeuroConfig (NeuroConfig& cfg , const File& configFile)
         var start = root->getProperty("start_event_output");
         if (auto* startObj = start.getDynamicObject())
         {
-            cfg.startEventOutput.start_time    = int(startObj->getProperty("start_time"));
+            cfg.startEventOutput.start_time    = float(startObj->getProperty("start_time"));
             cfg.startEventOutput.nbr_pulse     = int(startObj->getProperty("nbr_pulse"));
-            cfg.startEventOutput.pulse_duration= int(startObj->getProperty("pulse_duration"));
+            cfg.startEventOutput.pulse_duration= float(startObj->getProperty("pulse_duration"));
             cfg.startEventOutput.name   = startObj->getProperty("module_name").toString();
             cfg.startEventOutput.digital_line  = startObj->getProperty("digital_line").toString();
         }
@@ -156,5 +154,5 @@ inline void  parseNeuroConfig (NeuroConfig& cfg , const File& configFile)
             }
         }
     }
-    LOGD("HashMap size = " + cfg.neuroLayerSystem.columns.size());
+   
 }
