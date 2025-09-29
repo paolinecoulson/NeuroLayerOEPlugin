@@ -162,9 +162,9 @@ public:
                                       DAQmx_Val_ContSamps,
                                       bufferSize);
 
-        // Export master�s sample clock
         NIDAQ::DAQmxExportSignal (taskHandle_, DAQmx_Val_SampleClock, trigName);
         return std::string(trigName);
+
     }
 
     void setClock(const std::string& trigName, int bufferSize) {
@@ -398,9 +398,9 @@ public:
     void setVoltageRange (int index) { voltageRangeIndex = index; };
 
     int getNsample() { return 3200; };
-    int getRowNumber() { return numProbeRow; };
+    int getRowNumber() {return numProbeRow;};
     int getColumnNumber() { return numProbeColumn; };
-    int getCellNumber() { return numProbeRow * numProbeColumn; };
+    int getCellNumber() { return getRowNumber() *  getColumnNumber(); };
 
     void closeTask()
     {

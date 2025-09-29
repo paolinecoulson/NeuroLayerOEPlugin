@@ -82,8 +82,8 @@ NeuroProcessor::NeuroProcessor(NeuroConfig& cfg)
         diDevice->setSampleRate (sampleRate);
         DIdevices.add(diDevice);
         dev_index+=1;
+        numProbeRow += cfg.neuroLayerSystem.numRows;
     }
-    numProbeRow = cfg.neuroLayerSystem.numRows;
 
     // --- Setup Event Devices ---
     for (const auto& evt : cfg.eventInputs)
@@ -236,12 +236,15 @@ void NeuroProcessor::run()
 
         startDevice->start();
 
+
         for (int i = 1; i < AIdevices.size(); i++)
+
         {
             AIdevices[i]->start();
         }
 
         AIdevices[0]->start();
+
     }
     catch (const std::exception& e)
     {
@@ -260,7 +263,7 @@ void NeuroProcessor::run()
     LOGD ("Start acquisition");
 
     int numDevices = AIdevices.size();
-    int nbr_channel = numProbeColumn * numProbeRow;
+    int nbr_channel = getCellNumber();
     
     try
     {
@@ -288,8 +291,8 @@ void NeuroProcessor::run()
                 {
                     for (int analogch = 0; analogch < AIdevices[station]->analogLines_.size(); ++analogch)
                     {
-                        for (int ch = 0; ch < DIdevices[station]->numLines_; ch++)
-                            output[writeIdx++] = dev_ai_data[station][ch + analogch * numProbeRow * getNsample() + nsample * numProbeRow]; // step per sample
+                        for (int ch = 0; ch < getRowNumber(); ch++)
+                            output[writeIdx++] = dev_ai_data[station][ch + analogch * getRowNumber() * getNsample() + nsample * getRowNumber()]; // step per sample
                     }
                 }
                 juce::uint64 eventCode = 0;
