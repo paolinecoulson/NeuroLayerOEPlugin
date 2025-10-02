@@ -90,10 +90,16 @@ public:
 
     virtual void start()
     {
-        if (taskHandle_ != 0)
-            DAQmxCheck (NIDAQ::DAQmxStartTask (taskHandle_));
+
         if (counterTask != 0)
             DAQmxCheck (NIDAQ::DAQmxStartTask (counterTask));
+
+
+        if (taskHandle_ != 0)
+            DAQmxCheck (NIDAQ::DAQmxStartTask (taskHandle_));
+
+
+
     }
 
     virtual void control()
@@ -158,11 +164,19 @@ public:
                 nullptr));
         }
     }
-    void getClock (char* trig_name_di, char* trig_name_do, int bufferSize) 
+    void getClock (char* trig_name_di, char* trig_name_do, char* trig_name_start, int bufferSize) 
     {
         GetTerminalNameWithDevPrefix (taskHandle_, "PXI_Trig0", trig_name_di);
+
+        NIDAQ::DAQmxCfgSampClkTiming (taskHandle_,
+                                      "",
+                                      getSampleRate(),
+                                      DAQmx_Val_Rising,
+                                      DAQmx_Val_ContSamps,
+                                      bufferSize);
+
         NIDAQ::DAQmxExportSignal (taskHandle_, DAQmx_Val_SampleClock, trig_name_di);
-    
+
 
         DAQmxCheck (NIDAQ::DAQmxCreateTask (STR2CHR ("CounterClockTask" + name_), &counterTask));
         
@@ -173,19 +187,11 @@ public:
             "",
             DAQmx_Val_Hz, // Units
             DAQmx_Val_Low, // Idle state
-            0.0, // Initial delay
+            3.0 / (4*getSampleRate()), // Initial delay
             2 * getSampleRate(), // Frequency (2*Fs)
             0.5 // Duty cycle (50%)
         );
 
-        // CRITICAL: Use AI sample clock as the timebase for the counter
-        // This ensures the counter is synchronized with the AI acquisition
-
-        // Set the timebase source to be the AI sample clock
-        //NIDAQ::DAQmxSetCOCtrTimebaseSrc (counterTask, STR2CHR (name_ + "/ctr0"), trig_name_di);
-
-        // Set timebase rate to match AI sample rate
-        //NIDAQ::DAQmxSetCOCtrTimebaseRate (counterTask, STR2CHR (name_ + "/ctr0"), getSampleRate());
 
         // Configure for continuous pulse generation
         NIDAQ::DAQmxCfgImplicitTiming (counterTask, DAQmx_Val_ContSamps, 1000);
@@ -196,9 +202,17 @@ public:
 
         std::cout << "Counter clock (2*Fs) exported to: " << trig_name_do << std::endl;
         std::cout << "DO tasks will use: " << trig_name_di << std::endl;
+
+         GetTerminalNameWithDevPrefix (taskHandle_, "PXI_Trig2", trig_name_start);
+        NIDAQ::DAQmxExportSignal (taskHandle_, DAQmx_Val_StartTrigger, trig_name_start);
+
+         NIDAQ::DAQmxCfgDigEdgeStartTrig (
+             counterTask,
+             trig_name_start,
+             DAQmx_Val_Rising); // Set Start Clock;
     }
 
-    void setClock (char* trigName, int bufferSize)
+    void setClock (char* trigName, char* trigStart, int bufferSize)
     {
         NIDAQ::DAQmxCfgSampClkTiming (
             taskHandle_,
@@ -207,6 +221,12 @@ public:
             DAQmx_Val_Rising,
             DAQmx_Val_ContSamps,
             bufferSize);
+
+        
+         NIDAQ::DAQmxCfgDigEdgeStartTrig (
+            taskHandle_,
+            trigStart,
+            DAQmx_Val_Rising); // Set Start Clock;
     }
 
     void acquire (std::vector<NIDAQ::float64>* ai_data, int buffer_size)
@@ -242,10 +262,10 @@ public:
           digitalPort_ (digitalPort),
           numLines_ (numLines) {}
 
-    void setup (char* trigName, int buffer, int numStation)
+    void setup (char* trigName, char* trigStart, int buffer, int numStation)
     {
-        const int pulseLengthInSamples = 2;
-        const int samplesPerStation = numLines_ * pulseLengthInSamples + 1;
+        const int pulseLengthInSamples = 3;
+        const int samplesPerStation = numLines_ * pulseLengthInSamples;
 
         DAQmxCheck (NIDAQ::DAQmxCreateTask (STR2CHR ("DITask_" + name_), &taskHandle_));
         DAQmxCheck (NIDAQ::DAQmxCreateDOChan (taskHandle_,
@@ -259,11 +279,15 @@ public:
                                                   DAQmx_Val_Rising,
                                                   DAQmx_Val_ContSamps,
                                                   buffer));
+        NIDAQ::DAQmxCfgDigEdgeStartTrig (
+            taskHandle_,
+            trigStart,
+            DAQmx_Val_Rising); // Set Start Clock;
 
         DAQmxCheck (NIDAQ::DAQmxSetWriteRegenMode (taskHandle_, DAQmx_Val_AllowRegen));
 
         std::vector<NIDAQ::uInt32> waveform (samplesPerStation * numStation, 0);
-        int startSample = dev_index_ * samplesPerStation + 1;
+        int startSample = dev_index_ * samplesPerStation;
 
         NIDAQ::uInt32 bitMask = 0;
 
@@ -301,7 +325,7 @@ public:
     EventDIChannel (String name, String digitalLine, int event_label)
         : Channel (name, 0), digitalLine_ (digitalLine), event_label_ (event_label) {}
 
-    void setup (char* trigName, int buffer)
+    void setup (char* trigName, char* trigStart, int buffer)
     {
         DAQmxCheck (NIDAQ::DAQmxCreateTask ("Event_DI_Task", &taskHandle_));
 
@@ -316,6 +340,13 @@ public:
                                                   DAQmx_Val_Rising,
                                                   DAQmx_Val_ContSamps,
                                                   buffer));
+
+        NIDAQ::DAQmxCfgDigEdgeStartTrig (
+            taskHandle_,
+            trigStart,
+            DAQmx_Val_Rising); // Set Start Clock;
+
+
     }
 
     void acquire (std::vector<NIDAQ::uInt32>* di_data, int buffer_size)
@@ -348,13 +379,14 @@ public:
     StartChannel (String name, String digitalLine, float start_time, int nbr_pulse, float pulse_duration)
         : Channel (name, 0), digitalLine_ (digitalLine), start_time_ (start_time), nbr_pulse_ (nbr_pulse), pulse_duration_ (pulse_duration) {}
 
-    void setup (char* trigName)
+    void setup (char* trigName, char* trigStart)
     {
         NIDAQ::float64 timeout = 5.0;
         float pulse_length = pulse_duration_ * getSampleRate();
         float pulse_start_length = start_time_ * getSampleRate();
 
         std::vector<NIDAQ::uInt32> waveform_start (pulse_length * (nbr_pulse_ * 2 + 1) + pulse_start_length, 0);
+        LOGD (waveform_start.size());
 
         DAQmxCheck (NIDAQ::DAQmxCreateTask ("StartPulseTask", &taskHandle_));
         DAQmxCheck (NIDAQ::DAQmxCreateDOChan (taskHandle_,
@@ -362,6 +394,7 @@ public:
                                               "",
                                               DAQmx_Val_ChanPerLine));
 
+        LOGD (name_ + "/" + digitalLine_);
         DAQmxCheck (NIDAQ::DAQmxCfgSampClkTiming (taskHandle_,
                                                   trigName,
                                                   getSampleRate(),
@@ -369,12 +402,19 @@ public:
                                                   DAQmx_Val_FiniteSamps,
                                                   waveform_start.size()));
 
+                
+         NIDAQ::DAQmxCfgDigEdgeStartTrig (
+            taskHandle_,
+            trigStart,
+            DAQmx_Val_Rising); // Set Start Clock;
+
         DAQmxCheck (NIDAQ::DAQmxSetBufOutputBufSize (taskHandle_, waveform_start.size()));
 
         NIDAQ::uInt32 bitMask = static_cast<NIDAQ::uInt32> (1 << 8);
 
         for (int i = 0; i < nbr_pulse_; i++)
         {
+
             std::fill (waveform_start.begin() + pulse_start_length + pulse_length * (i * 2 + 1),
                        waveform_start.begin() + pulse_start_length + (i * 2 + 2) * pulse_length,
                        bitMask);
@@ -384,6 +424,7 @@ public:
         for (int i = 0; i < waveform_start.size(); i += chunkSize)
         {
             int currentChunkSize = std::min (chunkSize, static_cast<int> (waveform_start.size() - i));
+
             DAQmxCheck (NIDAQ::DAQmxWriteDigitalU32 (
                 taskHandle_,
                 currentChunkSize,

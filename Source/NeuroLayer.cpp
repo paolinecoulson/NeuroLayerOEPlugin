@@ -173,14 +173,15 @@ void NeuroProcessor::run()
         }
         char trig_clock_fs[256] = { "\0" };
         char trig_clock_2fs[256] = { "\0" };
+        char trig_start[256] = { "\0" };
 
         // Master: internal clock
-        AIdevices[0]->getClock (trig_clock_fs, trig_clock_2fs, getNsample() * CHANNEL_BUFFER_SIZE * 10);
+        AIdevices[0]->getClock (trig_clock_fs, trig_clock_2fs, trig_start, getNsample() * CHANNEL_BUFFER_SIZE * 10);
 
         // Slaves: use master’s clock
         for (int dev_i = 1; dev_i < AIdevices.size(); dev_i++)
         {
-            AIdevices[dev_i]->setClock (trig_clock_fs, getNsample() * CHANNEL_BUFFER_SIZE * 10);
+            AIdevices[dev_i]->setClock (trig_clock_fs, trig_start, getNsample() * CHANNEL_BUFFER_SIZE * 10);
         }
 
         /************************************/
@@ -189,14 +190,14 @@ void NeuroProcessor::run()
 
         for (int dev_i = 0; dev_i < DIdevices.size(); dev_i++)
         {
-            DIdevices[dev_i]->setup (trig_clock_2fs, CHANNEL_BUFFER_SIZE * getNsample(), DIdevices.size());
+            DIdevices[dev_i]->setup (trig_clock_2fs, trig_start, CHANNEL_BUFFER_SIZE * getNsample(), DIdevices.size());
         }
 
         for (int dev_i = 0; dev_i < eventDevices.size(); dev_i++)
         {
-            eventDevices[dev_i]->setup (trig_clock_fs, getNsample() * CHANNEL_BUFFER_SIZE * 10);
+            eventDevices[dev_i]->setup (trig_clock_fs, trig_start, getNsample() * CHANNEL_BUFFER_SIZE * 10);
         }
-        startDevice->setup (trig_clock_fs);
+        startDevice->setup (trig_clock_fs, trig_start);
     }
     catch (const std::exception& e)
     {
