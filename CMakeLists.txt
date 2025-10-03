@@ -110,4 +110,60 @@ endmacro()
 
 print_all_variables()
 
+# =========================
+# Test builder with GoogleTest
+# =========================
 
+include(CTest)
+option(BUILD_TESTS "Build unit tests" ON)
+
+if (BUILD_TESTS)
+    message(STATUS "Building tests is ENABLED (with GoogleTest)")
+
+    include(FetchContent)
+    FetchContent_Declare(
+        googletest
+        GIT_REPOSITORY https://github.com/google/googletest.git
+        GIT_TAG        v1.17.0   # stable release tag
+    )
+    # Prevent GoogleTest from overriding our compiler/linker settings on Windows
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(googletest)
+
+    enable_testing()
+
+    # Directory for test source files
+    set(TEST_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tests)
+    file(GLOB TEST_SRC_FILES LIST_DIRECTORIES false "${TEST_SOURCE_DIR}/*.cpp" "${TEST_SOURCE_DIR}/*.h")
+
+    if (TEST_SRC_FILES)
+        add_executable(${PLUGIN_NAME}_tests ${TEST_SRC_FILES})
+
+        target_link_libraries(${PLUGIN_NAME}_tests PRIVATE
+            ${PLUGIN_NAME}
+            GTest::gtest_main
+        )
+
+        target_include_directories(${PLUGIN_NAME}_tests PRIVATE
+            ${GUI_BASE_DIR}/JuceLibraryCode
+            ${GUI_BASE_DIR}/JuceLibraryCode/modules
+            ${GUI_BASE_DIR}/Plugins/Headers
+            ${GUI_COMMONLIB_DIR}/include
+            ${NIDAQMX_INCLUDE_DIR}
+        )
+
+        target_compile_features(${PLUGIN_NAME}_tests PRIVATE cxx_std_17)
+
+        # Let GoogleTest handle test registration automatically
+        include(GoogleTest)
+        gtest_discover_tests(${PLUGIN_NAME}_tests)
+
+        # Optional: Group tests under "Tests" in IDE
+        set_target_properties(${PLUGIN_NAME}_tests PROPERTIES FOLDER "Tests")
+
+    else()
+        message(WARNING "No test source files found in ${TEST_SOURCE_DIR}")
+    endif()
+else()
+    message(STATUS "Building tests is DISABLED")
+endif()
