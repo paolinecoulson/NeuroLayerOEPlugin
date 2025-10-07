@@ -115,7 +115,7 @@ print_all_variables()
 # =========================
 
 include(CTest)
-option(BUILD_TESTS "Build unit tests" ON)
+option(BUILD_TESTS "Build unit tests" OFF)
 
 if (BUILD_TESTS)
     message(STATUS "Building tests is ENABLED (with GoogleTest)")
