@@ -32,25 +32,25 @@ struct PluginSettingsObject
     // Store settings for the plugin here
 };
 
-DataThread* NeuroLayer::createDataThread (SourceNode* sn)
+DataThread* NeuroLayerThread::createDataThread (SourceNode* sn)
 {
-    return new NeuroLayer (sn);
+    return new NeuroLayerThread (sn);
 }
 
-NeuroLayer::NeuroLayer (SourceNode* sn) : DataThread (sn)
-{
-}
-
-NeuroLayer::~NeuroLayer()
+NeuroLayerThread::NeuroLayerThread (SourceNode* sn) : DataThread (sn)
 {
 }
 
-bool NeuroLayer::foundInputSource()
+NeuroLayerThread::~NeuroLayerThread()
+{
+}
+
+bool NeuroLayerThread::foundInputSource()
 {
     return true;
 }
 
-void NeuroLayer::updateSettings (OwnedArray<ContinuousChannel>* continuousChannels,
+void NeuroLayerThread::updateSettings (OwnedArray<ContinuousChannel>* continuousChannels,
                                  OwnedArray<EventChannel>* eventChannels,
                                  OwnedArray<SpikeChannel>* spikeChannels,
                                  OwnedArray<DataStream>* dataStreams,
@@ -131,7 +131,7 @@ void NeuroLayer::updateSettings (OwnedArray<ContinuousChannel>* continuousChanne
     
 }
 
-bool NeuroLayer::startAcquisition()
+bool NeuroLayerThread::startAcquisition()
 {
     if (! processor)
         return false;
@@ -140,14 +140,14 @@ bool NeuroLayer::startAcquisition()
     return true;
 }
 
-bool NeuroLayer::updateBuffer()
+bool NeuroLayerThread::updateBuffer()
 {
 
 
     return true;
 }
 
-bool NeuroLayer::stopAcquisition()
+bool NeuroLayerThread::stopAcquisition()
 {
     if (! processor)
         return false;
@@ -159,35 +159,35 @@ bool NeuroLayer::stopAcquisition()
     return true;
 }
 
-void NeuroLayer::resizeBuffers()
+void NeuroLayerThread::resizeBuffers()
 {
 }
 
-std::unique_ptr<GenericEditor> NeuroLayer::createEditor (SourceNode* sn)
+std::unique_ptr<GenericEditor> NeuroLayerThread::createEditor (SourceNode* sn)
 {
     std::unique_ptr<NeuroLayerEditor> editor = std::make_unique<NeuroLayerEditor> (sn, this);
 
     return editor;
 }
 
-void NeuroLayer::handleBroadcastMessage (const String& msg, const int64 messageTimestmpMilliseconds)
+void NeuroLayerThread::handleBroadcastMessage (const String& msg, const int64 messageTimestmpMilliseconds)
 {
 }
 
-String NeuroLayer::handleConfigMessage (const String& msg)
+String NeuroLayerThread::handleConfigMessage (const String& msg)
 {
     return "";
 }
 
-void NeuroLayer::registerParameters()
+void NeuroLayerThread::registerParameters()
 {
 }
 
-void NeuroLayer::parameterValueChanged (Parameter* parameter)
+void NeuroLayerThread::parameterValueChanged (Parameter* parameter)
 {
 }
 
-void NeuroLayer::setVoltageRange (int id)
+void NeuroLayerThread::setVoltageRange (int id)
 {
     if (! processor)
         return; // nothing to configure yet
@@ -198,7 +198,7 @@ void NeuroLayer::setVoltageRange (int id)
 
 
 
-Array<float> NeuroLayer::getVoltageRange()
+Array<float> NeuroLayerThread::getVoltageRange()
 {
     if (! processor)
         return Array<float>();
@@ -207,7 +207,7 @@ Array<float> NeuroLayer::getVoltageRange()
 
 }
 
-void NeuroLayer::setConfigFile (File config)
+void NeuroLayerThread::setConfigFile (File config)
 {
     LOGD ("Config file updated: " + config.getFullPathName());
     
@@ -216,7 +216,8 @@ void NeuroLayer::setConfigFile (File config)
 
 }
 
-void NeuroLayer::reloadConfig(){
+void NeuroLayerThread::reloadConfig()
+{
 
     processor = std::make_unique<NeuroProcessor> (neuroConfig);
     sourceBuffers.add (new DataBuffer (processor->getCellNumber(), 10000));

@@ -25,7 +25,7 @@
 #include "NeuroLayerEditor.h"
 #include "NeuroLayerThread.h"
 
-NeuroLayerEditor::NeuroLayerEditor(GenericProcessor* parentNode, NeuroLayer* thread)
+NeuroLayerEditor::NeuroLayerEditor(GenericProcessor* parentNode, NeuroLayerThread* thread)
     : GenericEditor(parentNode), thread(thread)
 {
     desiredWidth = 200;

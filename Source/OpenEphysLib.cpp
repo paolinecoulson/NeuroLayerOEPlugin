@@ -51,7 +51,7 @@ extern "C" EXPORT int getPluginInfo (int index, Plugin::PluginInfo* info)
         case 0:
             info->type = Plugin::Type::DATA_THREAD;
             info->dataThread.name = "NeuroLayer";
-            info->dataThread.creator = &createDataThread<NeuroLayer>;
+            info->dataThread.creator = &createDataThread<NeuroLayerThread>;
             break;
         default:
             return -1;

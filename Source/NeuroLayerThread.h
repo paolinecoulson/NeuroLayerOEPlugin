@@ -29,14 +29,14 @@
 #include "NeuroLayer.h"
 #include "NeuroConfig.h"
 
-class NeuroLayer : public DataThread
+class NeuroLayerThread : public DataThread
 {
 public:
     /** The class constructor, used to initialize any members. */
-    NeuroLayer (SourceNode* sn);
+    NeuroLayerThread (SourceNode* sn);
 
     /** The class destructor, used to deallocate memory */
-    ~NeuroLayer();
+    ~NeuroLayerThread();
 
     // ------------------------------------------------------------
     //                  PURE VIRTUAL METHODS
@@ -101,7 +101,7 @@ private:
     std::optional<NeuroConfig> currentConfig;
     OwnedArray<DataStream> sourceStreams;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (NeuroLayer);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (NeuroLayerThread);
 
 };
 

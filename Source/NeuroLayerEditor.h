@@ -35,7 +35,7 @@ class NeuroLayerEditor : public GenericEditor,
 {
 public:
     /** The class constructor, used to initialize any members. */
-    NeuroLayerEditor (GenericProcessor* parentNode, NeuroLayer* thread);
+    NeuroLayerEditor (GenericProcessor* parentNode, NeuroLayerThread* thread);
 
     /** The class destructor, used to deallocate memory */
     ~NeuroLayerEditor() {}
@@ -45,9 +45,9 @@ public:
 
     void saveCustomParametersToXml(XmlElement *xml) override;
     void loadCustomParametersFromXml(XmlElement *xml) override;
-    
+
 private:
-    NeuroLayer* thread = nullptr;
+    NeuroLayerThread* thread = nullptr;
 
     ScopedPointer<ComboBox> voltageRangeSelector;
     ScopedPointer<juce::Label> voltageLabel;
