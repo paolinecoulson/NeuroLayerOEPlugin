@@ -43,6 +43,9 @@ public:
     void buttonClicked(juce::Button* button) override;
     void comboBoxChanged(juce::ComboBox* comboBoxThatChanged) override;
 
+    void saveCustomParametersToXml(XmlElement *xml) override;
+    void loadCustomParametersFromXml(XmlElement *xml) override;
+    
 private:
     NeuroLayer* thread = nullptr;
 

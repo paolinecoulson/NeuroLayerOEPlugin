@@ -47,7 +47,7 @@
     "nbr_pulse": 2,
     "pulse_duration": 0.1,
     "module_name": "PXI2Slot6",
-    "digital_line": "Port0/line7"
+    "digital_line": "Port0/line16"
   },
   "event_input": [
     {

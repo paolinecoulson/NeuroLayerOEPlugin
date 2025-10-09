@@ -196,6 +196,8 @@ void NeuroLayer::setVoltageRange (int id)
     sourceStreams.clear();
 }
 
+
+
 Array<float> NeuroLayer::getVoltageRange()
 {
     if (! processor)
@@ -208,13 +210,16 @@ Array<float> NeuroLayer::getVoltageRange()
 void NeuroLayer::setConfigFile (File config)
 {
     LOGD ("Config file updated: " + config.getFullPathName());
+    
+    parseNeuroConfig (neuroConfig, config);
+    reloadConfig();
 
-    // 1. Parse config
-    NeuroConfig parsedConfig;
-    parseNeuroConfig (parsedConfig, config);
-    processor = std::make_unique<NeuroProcessor> (parsedConfig);
+}
+
+void NeuroLayer::reloadConfig(){
+
+    processor = std::make_unique<NeuroProcessor> (neuroConfig);
     sourceBuffers.add (new DataBuffer (processor->getCellNumber(), 10000));
     processor->aiBuffer = sourceBuffers.getLast();
     sourceStreams.clear();
-
 }

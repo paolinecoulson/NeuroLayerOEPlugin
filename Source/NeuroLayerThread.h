@@ -82,6 +82,7 @@ public:
     /** Allows the DataThread plugin to handle a config message while acquisition is not active */
     String handleConfigMessage (const String& msg) override;
 
+
     /** Registers parameters to the DataThread */
     void registerParameters() override;
 
@@ -89,8 +90,10 @@ public:
     void parameterValueChanged (Parameter* parameter) override;
 
     void setConfigFile(File config);
+    void reloadConfig();
     void setVoltageRange(int value);
     Array<float> getVoltageRange();
+    NeuroConfig neuroConfig;
 
 private: 
     juce::File configFile;

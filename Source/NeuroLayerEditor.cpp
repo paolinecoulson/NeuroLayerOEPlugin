@@ -93,3 +93,190 @@ void NeuroLayerEditor::buttonClicked(Button* button)
 
     }
 }
+void NeuroLayerEditor::saveCustomParametersToXml (XmlElement* xml)
+{
+    if (xml == nullptr)
+        return;
+
+    // -----------------------------
+    // neuroLayerSystem
+    // -----------------------------
+    XmlElement* sysXml = xml->createNewChildElement ("neuroLayerSystem");
+    sysXml->setAttribute ("numRows", thread->neuroConfig.neuroLayerSystem.numRows);
+
+    // Columns (array of pairs)
+    XmlElement* colsXml = sysXml->createNewChildElement ("columns");
+    for (const auto& entry : thread->neuroConfig.neuroLayerSystem.columns)
+    {
+        const auto& module = entry.first;
+        for (const auto& line : entry.second)
+        {
+                XmlElement* colItem = colsXml->createNewChildElement ("item");
+                colItem->setAttribute ("module", module);
+                colItem->setAttribute ("line", line);
+        }
+    }
+
+    // Rows (array of pairs)
+    XmlElement* rowsXml = sysXml->createNewChildElement ("rows");
+    for (const auto& entry : thread->neuroConfig.neuroLayerSystem.rows)
+    {
+        XmlElement* rowItem = rowsXml->createNewChildElement ("item");
+        rowItem->setAttribute ("module", entry.first);
+        rowItem->setAttribute ("port", entry.second);
+    }
+
+    // -----------------------------
+    // start_event_output
+    // -----------------------------
+    const auto& start = thread->neuroConfig.startEventOutput;
+    XmlElement* startXml = xml->createNewChildElement ("start_event_output");
+    startXml->setAttribute ("start_time", start.start_time);
+    startXml->setAttribute ("nbr_pulse", start.nbr_pulse);
+    startXml->setAttribute ("pulse_duration", start.pulse_duration);
+    startXml->setAttribute ("module_name", start.name);
+    startXml->setAttribute ("digital_line", start.digital_line);
+
+    // -----------------------------
+    // event_input
+    // -----------------------------
+    XmlElement* eventsXml = xml->createNewChildElement ("event_input");
+    for (const auto& ev : thread->neuroConfig.eventInputs)
+    {
+        XmlElement* evXml = eventsXml->createNewChildElement ("item");
+        evXml->setAttribute ("module_name", ev.name);
+        evXml->setAttribute ("digital_line", ev.digital_line);
+        evXml->setAttribute ("oe_event_label", ev.oe_event_label);
+    }
+
+    // -----------------------------
+    // voltage_range
+    // -----------------------------
+    XmlElement* voltXml = xml->createNewChildElement ("voltage_range");
+
+    const auto& voltageRanges = thread->getVoltageRange();
+    for (auto v : voltageRanges)
+    {
+        XmlElement* item = voltXml->createNewChildElement ("item");
+        item->setAttribute ("voltage", v);
+    }
+
+    // Store currently selected voltage range ID (if available)
+    voltXml->setAttribute ("voltage_id", voltageRangeSelector->getSelectedId());
+
+    // -----------------------------
+    // config file name
+    // -----------------------------
+    xml->setAttribute ("config_file_name", configFileLabel->getText());
+}
+
+void NeuroLayerEditor::loadCustomParametersFromXml (XmlElement* xml)
+{
+    if (xml == nullptr)
+        return;
+
+    // -----------------------------
+    // neuroLayerSystem
+    // -----------------------------
+    if (auto* sysXml = xml->getChildByName("neuroLayerSystem"))
+    {
+        thread->neuroConfig.neuroLayerSystem.columns.clear();
+        thread->neuroConfig.neuroLayerSystem.rows.clear();
+        thread->neuroConfig.neuroLayerSystem.numRows = 
+            sysXml->getIntAttribute("numRows", 0);
+
+        // Columns
+        if (auto* colsXml = sysXml->getChildByName("columns"))
+        {
+            forEachXmlChildElementWithTagName(*colsXml, item, "item")
+            {
+                const auto module = item->getStringAttribute("module");
+                const auto line   = item->getStringAttribute("line");
+                if (module.isNotEmpty() && line.isNotEmpty())
+                    thread->neuroConfig.neuroLayerSystem.columns[module].add(line);
+            }
+        }
+
+        // Rows
+        if (auto* rowsXml = sysXml->getChildByName("rows"))
+        {
+            forEachXmlChildElementWithTagName(*rowsXml, item, "item")
+            {
+                const auto module = item->getStringAttribute("module");
+                const auto port   = item->getStringAttribute("port");
+                if (module.isNotEmpty() && port.isNotEmpty())
+                    thread->neuroConfig.neuroLayerSystem.rows[module] = port;
+            }
+        }
+    }
+
+    // -----------------------------
+    // start_event_output
+    // -----------------------------
+    if (auto* startXml = xml->getChildByName("start_event_output"))
+    {
+        auto& start = thread->neuroConfig.startEventOutput;
+        start.start_time   = (float) startXml->getDoubleAttribute("start_time", 0.0);
+        start.nbr_pulse    = startXml->getIntAttribute("nbr_pulse", 0);
+        start.pulse_duration = (float) startXml->getDoubleAttribute("pulse_duration", 0.0);
+        start.name         = startXml->getStringAttribute("module_name", "");
+        start.digital_line = startXml->getStringAttribute("digital_line", "");
+    }
+
+    // -----------------------------
+    // event_input
+    // -----------------------------
+    thread->neuroConfig.eventInputs.clear();
+    if (auto* eventsXml = xml->getChildByName("event_input"))
+    {
+        forEachXmlChildElementWithTagName(*eventsXml, evXml, "item")
+        {
+            EventInputConfig ev;
+            ev.name          = evXml->getStringAttribute("module_name", "");
+            ev.digital_line  = evXml->getStringAttribute("digital_line", "");
+            ev.oe_event_label= evXml->getIntAttribute("oe_event_label", 0);
+
+            // Only add valid entries
+            if (ev.name.isNotEmpty() || ev.digital_line.isNotEmpty())
+                thread->neuroConfig.eventInputs.add(ev);
+        }
+    }
+
+    thread->reloadConfig();
+
+    // -----------------------------
+    // voltage_range
+    // -----------------------------
+    if (auto* voltXml = xml->getChildByName("voltage_range"))
+    {
+        voltageRangeSelector->clear();
+        int i = 1; // JUCE combo box IDs start at 1
+
+        forEachXmlChildElementWithTagName(*voltXml, item, "item")
+        {
+            auto voltageStr = (float)item->getDoubleAttribute("voltage", 0);
+            if (voltageStr != 0)
+            {
+                auto label = "-" + String(voltageStr) + " to " + String(voltageStr) + " V";
+                voltageRangeSelector->addItem(label, i++);
+            }
+        }
+
+        voltageRangeSelector->setSelectedId(
+            voltXml->getIntAttribute("voltage_id", 0),
+            dontSendNotification
+        );
+    }
+    else
+    {
+        voltageRangeSelector->clear();
+    }
+
+    // -----------------------------
+    // config file name
+    // -----------------------------
+    configFileLabel->setText(
+        xml->getStringAttribute("config_file_name", ""),
+        dontSendNotification
+    );
+}

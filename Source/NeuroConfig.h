@@ -10,8 +10,8 @@
 struct NeuroLayerSystemConfig
 {
     // Map each module -> list of lines
-    std::map<juce::String, juce::StringArray> columns; // e.g. "PXI2" -> {"line0", "line1"}
-    std::map<juce::String, juce::String> rows;    // e.g. "PXI2" -> {"Port0"}
+    std::map<juce::String, juce::StringArray> columns ={}; // e.g. "PXI2" -> {"line0", "line1"}
+    std::map<juce::String, juce::String> rows ={};    // e.g. "PXI2" -> {"Port0"}
     int numRows; // number of lines used in the digital Port
 
 };
@@ -21,14 +21,14 @@ struct StartEventOutputConfig
     float start_time = 0;
     int nbr_pulse = 0;
     float pulse_duration = 0;
-    juce::String name;
-    juce::String digital_line;
+    juce::String name = "";
+    juce::String digital_line ="";
 };
 
 struct EventInputConfig
 {
-    juce::String name;
-    juce::String digital_line;
+    juce::String name ="";
+    juce::String digital_line = "";
     int oe_event_label = 0;
 };
 
@@ -36,7 +36,7 @@ struct NeuroConfig
 {
     NeuroLayerSystemConfig neuroLayerSystem;
     StartEventOutputConfig startEventOutput;
-    juce::Array<EventInputConfig> eventInputs;
+    juce::Array<EventInputConfig> eventInputs = {};
 };
 
 // ---------------------------------------------------
