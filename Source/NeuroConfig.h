@@ -46,6 +46,9 @@ struct NeuroConfig
 inline void  parseNeuroConfig (NeuroConfig& cfg , const File& configFile)
 {
     
+    cfg.neuroLayerSystem.columns.clear();
+    cfg.neuroLayerSystem.rows.clear();
+    cfg.eventInputs.clear();
 
     if (!configFile.existsAsFile())
     {

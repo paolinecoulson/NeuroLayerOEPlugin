@@ -114,6 +114,8 @@ public:
     {
         if (taskHandle_)
         {
+            LOGD("Clear task handle ", name_);
+
             NIDAQ::DAQmxStopTask (taskHandle_);
             NIDAQ::DAQmxClearTask (taskHandle_);
             taskHandle_ = 0;
@@ -121,6 +123,7 @@ public:
 
         if (counterTask)
         {
+             LOGD("Clear counter handle ", name_);
             NIDAQ::DAQmxStopTask (counterTask);
             NIDAQ::DAQmxClearTask (counterTask);
             counterTask = 0;
