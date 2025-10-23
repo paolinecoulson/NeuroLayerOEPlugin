@@ -1,0 +1,79 @@
+name: Windows
+
+on:
+  push:
+    tags:
+      - '*.*.*'  # Trigger on tag pushes like v1.2.3
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup plugin-GUI
+      run: |
+        cd ../..
+        git clone https://github.com/open-ephys/plugin-GUI.git --branch main
+        cd plugin-GUI/Build
+        cmake -G "Visual Studio 17 2022" -A x64 .. 
+        mkdir Release && cd Release
+        curl -L https://openephys.jfrog.io/artifactory/GUI-binaries/Libraries/open-ephys-lib-v1.0.0.zip --output open-ephys-lib.zip
+        unzip open-ephys-lib.zip
+      shell: bash
+
+    - name: Configure
+      run: |
+        cd Build
+        cmake -G "Visual Studio 17 2022" -A x64 ..
+      shell: bash
+
+    - name: Add msbuild to PATH
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Build plugin
+      run: |
+        cd Build
+        msbuild INSTALL.vcxproj -p:Configuration=Release -p:Platform=x64
+      shell: cmd
+
+    # Optional testing step
+    # - name: Test
+    #   run: cd Build && ctest
+    #   shell: bash
+
+    - name: Package plugin
+      id: package
+      run: |
+        build_dir="Build/Release"
+        package="NIDAQ-windows"
+        
+        plugin_api=$(grep -rnw ../../plugin-GUI/Source -e '#define PLUGIN_API_VER' | grep -Eo "[0-9]*" | tail -1)
+        tag=$(grep -w Source/OpenEphysLib.cpp -e 'info->libVersion' | grep -Eo "[0-9]+.[0-9]+.[0-9]+")
+        new_plugin_ver=$tag-API$plugin_api
+
+        mkdir plugins
+        cp $build_dir/*.dll plugins
+
+        if [ -d "Resources" ]; then
+          mkdir shared
+          cp Resources/*.dll shared
+        fi
+
+        zipfile=${package}_${new_plugin_ver}.zip
+        powershell Compress-Archive -Path "plugins" -DestinationPath ${zipfile}
+
+        echo "zipfile=${zipfile}" >> $GITHUB_ENV
+      shell: bash
+
+    - name: Create GitHub release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ github.ref_name }}
+        name: "Release ${{ github.ref_name }}"
+        files: |
+          ${{ env.zipfile }}
+          LICENSE
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
