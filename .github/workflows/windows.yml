@@ -38,11 +38,6 @@ jobs:
         msbuild INSTALL.vcxproj -p:Configuration=Release -p:Platform=x64
       shell: cmd
 
-    # Optional testing step
-    # - name: Test
-    #   run: cd Build && ctest
-    #   shell: bash
-
     - name: Package plugin
       id: package
       run: |
