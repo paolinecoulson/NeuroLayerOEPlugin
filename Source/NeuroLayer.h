@@ -114,8 +114,6 @@ public:
     {
         if (taskHandle_)
         {
-            LOGD("Clear task handle ", name_);
-
             NIDAQ::DAQmxStopTask (taskHandle_);
             NIDAQ::DAQmxClearTask (taskHandle_);
             taskHandle_ = 0;
@@ -123,7 +121,6 @@ public:
 
         if (counterTask)
         {
-             LOGD("Clear counter handle ", name_);
             NIDAQ::DAQmxStopTask (counterTask);
             NIDAQ::DAQmxClearTask (counterTask);
             counterTask = 0;
@@ -180,7 +177,6 @@ public:
 
         NIDAQ::DAQmxExportSignal (taskHandle_, DAQmx_Val_SampleClock, trig_name_di);
 
-
         DAQmxCheck (NIDAQ::DAQmxCreateTask (STR2CHR ("CounterClockTask" + name_), &counterTask));
         
         // Create pulse train with frequency = 2*Fs and 50% duty cycle
@@ -206,7 +202,7 @@ public:
         std::cout << "Counter clock (2*Fs) exported to: " << trig_name_do << std::endl;
         std::cout << "DO tasks will use: " << trig_name_di << std::endl;
 
-         GetTerminalNameWithDevPrefix (taskHandle_, "PXI_Trig2", trig_name_start);
+        GetTerminalNameWithDevPrefix (taskHandle_, "PXI_Trig2", trig_name_start);
         NIDAQ::DAQmxExportSignal (taskHandle_, DAQmx_Val_StartTrigger, trig_name_start);
 
          NIDAQ::DAQmxCfgDigEdgeStartTrig (
@@ -217,6 +213,7 @@ public:
 
     void setClock (char* trigName, char* trigStart, int bufferSize)
     {
+
         NIDAQ::DAQmxCfgSampClkTiming (
             taskHandle_,
             trigName,
@@ -224,6 +221,8 @@ public:
             DAQmx_Val_Rising,
             DAQmx_Val_ContSamps,
             bufferSize);
+
+        GetTerminalNameWithDevPrefix (taskHandle_, "PXI_Trig2", trigStart);
 
         
          NIDAQ::DAQmxCfgDigEdgeStartTrig (
@@ -267,8 +266,10 @@ public:
 
     void setup (char* trigName, char* trigStart, int buffer, int numStation)
     {
-        const int pulseLengthInSamples = 3;
+        const int pulseLengthInSamples = 1;
         const int samplesPerStation = numLines_ * pulseLengthInSamples;
+
+
 
         DAQmxCheck (NIDAQ::DAQmxCreateTask (STR2CHR ("DITask_" + name_), &taskHandle_));
         DAQmxCheck (NIDAQ::DAQmxCreateDOChan (taskHandle_,
@@ -276,12 +277,17 @@ public:
                                               "",
                                               DAQmx_Val_ChanForAllLines));
 
+        GetTerminalNameWithDevPrefix (taskHandle_, "PXI_Trig1", trigName);
+
         DAQmxCheck (NIDAQ::DAQmxCfgSampClkTiming (taskHandle_,
                                                   trigName,
                                                   getSampleRate() * 2,
                                                   DAQmx_Val_Rising,
                                                   DAQmx_Val_ContSamps,
                                                   buffer));
+
+        GetTerminalNameWithDevPrefix (taskHandle_, "PXI_Trig2", trigStart);
+
         NIDAQ::DAQmxCfgDigEdgeStartTrig (
             taskHandle_,
             trigStart,
@@ -343,7 +349,7 @@ public:
                                                   DAQmx_Val_Rising,
                                                   DAQmx_Val_ContSamps,
                                                   buffer));
-
+        GetTerminalNameWithDevPrefix (taskHandle_, "PXI_Trig2", trigStart);
         NIDAQ::DAQmxCfgDigEdgeStartTrig (
             taskHandle_,
             trigStart,
@@ -405,6 +411,8 @@ public:
                                                   DAQmx_Val_FiniteSamps,
                                                   waveform_start.size()));
 
+
+        GetTerminalNameWithDevPrefix (taskHandle_, "PXI_Trig2", trigStart);
                 
          NIDAQ::DAQmxCfgDigEdgeStartTrig (
             taskHandle_,
