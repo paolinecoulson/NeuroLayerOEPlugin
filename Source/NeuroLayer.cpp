@@ -52,6 +52,7 @@ NeuroProcessor::NeuroProcessor(NeuroConfig& cfg)
         analogLines =  std::get<1>(col);
 
         maxColumnsPerStation = std::max(maxColumnsPerStation, int(analogLines.size()));
+        std::cout << moduleName << ": " << dev_index << std::endl; 
 
         auto* aiDevice = new InputAIChannel (moduleName, analogLines, dev_index);
         aiDevice->configure();
@@ -77,6 +78,7 @@ NeuroProcessor::NeuroProcessor(NeuroConfig& cfg)
     {
         const String moduleName = std::get<0>(row);
         juce::String portName =  std::get<1>(row);
+        std::cout << moduleName << ": " << dev_index << std::endl; 
         auto* diDevice = new InputDIChannel(moduleName, portName, dev_index, cfg.neuroLayerSystem.numRows);
         diDevice->configure();
         diDevice->setSampleRate (sampleRate);
@@ -287,14 +289,14 @@ void NeuroProcessor::run()
             {
                 eventDevices[i]->acquire (&dev_di_event[i], getNsample() * CHANNEL_BUFFER_SIZE);
             }
-             for (int nsample = 0; nsample < getNsample(); ++nsample)
+             for (int nsample = 0; nsample < getNsample(); nsample++)
             {
                 int writeIdx = 0;
                 for (int station = 0; station < numDevices; ++station)
                 {
                     for (int analogch = 0; analogch < AIdevices[station]->analogLines_.size(); ++analogch)
                     {
-                        for (int ch = 0; ch < getRowNumber(); ch++)
+                        for (int ch = 0; ch < getRowNumber(); ++ch)
                             output[writeIdx++] = dev_ai_data[station][ch + analogch * getRowNumber() * getNsample() + nsample * getRowNumber()]; // step per sample
                     }
                 }

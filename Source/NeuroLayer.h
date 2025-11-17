@@ -266,6 +266,7 @@ public:
 
     void setup (char* trigName, char* trigStart, int buffer, int numStation)
     {
+        
         const int pulseLengthInSamples = 1;
         const int samplesPerStation = numLines_ * pulseLengthInSamples;
 
