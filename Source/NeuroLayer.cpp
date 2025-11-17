@@ -289,7 +289,7 @@ void NeuroProcessor::run()
             {
                 eventDevices[i]->acquire (&dev_di_event[i], getNsample() * CHANNEL_BUFFER_SIZE);
             }
-             for (int nsample = 0; nsample < getNsample(); nsample++)
+             for (int nsample = 0; nsample < getNsample(); ++nsample)
             {
                 int writeIdx = 0;
                 for (int station = 0; station < numDevices; ++station)

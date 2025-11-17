@@ -93,7 +93,7 @@ public:
 
         if (counterTask != 0)
             DAQmxCheck (NIDAQ::DAQmxStartTask (counterTask));
-
+            
 
         if (taskHandle_ != 0)
             DAQmxCheck (NIDAQ::DAQmxStartTask (taskHandle_));
@@ -106,6 +106,7 @@ public:
     {
         if (taskHandle_ != 0)
             DAQmxCheck (NIDAQ::DAQmxTaskControl (taskHandle_, DAQmx_Val_Task_Commit));
+        
         if (counterTask != 0)
             DAQmxCheck (NIDAQ::DAQmxTaskControl (counterTask, DAQmx_Val_Task_Commit));
     }
@@ -114,6 +115,8 @@ public:
     {
         if (taskHandle_)
         {
+            LOGD("Clear task handle ", name_);
+
             NIDAQ::DAQmxStopTask (taskHandle_);
             NIDAQ::DAQmxClearTask (taskHandle_);
             taskHandle_ = 0;
@@ -121,6 +124,7 @@ public:
 
         if (counterTask)
         {
+             LOGD("Clear counter handle ", name_);
             NIDAQ::DAQmxStopTask (counterTask);
             NIDAQ::DAQmxClearTask (counterTask);
             counterTask = 0;
@@ -168,6 +172,8 @@ public:
     {
         GetTerminalNameWithDevPrefix (taskHandle_, "PXI_Trig0", trig_name_di);
 
+        std::cout << "set clock " << name_ << "; " <<dev_index_ << std::endl;
+
         NIDAQ::DAQmxCfgSampClkTiming (taskHandle_,
                                       "",
                                       getSampleRate(),
@@ -176,6 +182,13 @@ public:
                                       bufferSize);
 
         NIDAQ::DAQmxExportSignal (taskHandle_, DAQmx_Val_SampleClock, trig_name_di);
+        //used to debug the Clock signal
+        
+        char trig_demo[256] = { "\0" };
+        GetTerminalNameWithDevPrefix (taskHandle_, "PFI0", trig_demo);
+        std::cout << "export the clocks: " << trig_demo << std::endl;
+        NIDAQ::DAQmxConnectTerms (trig_name_di, trig_demo, DAQmx_Val_DoNotInvertPolarity);
+
 
         DAQmxCheck (NIDAQ::DAQmxCreateTask (STR2CHR ("CounterClockTask" + name_), &counterTask));
         
@@ -186,7 +199,7 @@ public:
             "",
             DAQmx_Val_Hz, // Units
             DAQmx_Val_Low, // Idle state
-            3.0 / (4*getSampleRate()), // Initial delay
+            1.0 / (2*getSampleRate()), // Initial delay
             2 * getSampleRate(), // Frequency (2*Fs)
             0.5 // Duty cycle (50%)
         );
@@ -199,11 +212,18 @@ public:
         GetTerminalNameWithDevPrefix (taskHandle_, "PXI_Trig1", trig_name_do);
         NIDAQ::DAQmxExportSignal (counterTask, DAQmx_Val_CounterOutputEvent, trig_name_do);
 
+        GetTerminalNameWithDevPrefix (taskHandle_, "PFI1", trig_demo);
+        NIDAQ::DAQmxConnectTerms (trig_name_do, trig_demo, DAQmx_Val_DoNotInvertPolarity);
+
+
         std::cout << "Counter clock (2*Fs) exported to: " << trig_name_do << std::endl;
         std::cout << "DO tasks will use: " << trig_name_di << std::endl;
 
         GetTerminalNameWithDevPrefix (taskHandle_, "PXI_Trig2", trig_name_start);
         NIDAQ::DAQmxExportSignal (taskHandle_, DAQmx_Val_StartTrigger, trig_name_start);
+
+        GetTerminalNameWithDevPrefix (taskHandle_, "PFI2", trig_demo);
+        NIDAQ::DAQmxConnectTerms (trig_name_do, trig_demo, DAQmx_Val_DoNotInvertPolarity);
 
          NIDAQ::DAQmxCfgDigEdgeStartTrig (
              counterTask,
@@ -221,6 +241,7 @@ public:
             DAQmx_Val_Rising,
             DAQmx_Val_ContSamps,
             bufferSize);
+
 
         GetTerminalNameWithDevPrefix (taskHandle_, "PXI_Trig2", trigStart);
 
@@ -266,9 +287,10 @@ public:
 
     void setup (char* trigName, char* trigStart, int buffer, int numStation)
     {
-        
-        const int pulseLengthInSamples = 1;
+        const int pulseLengthInSamples = 2;
         const int samplesPerStation = numLines_ * pulseLengthInSamples;
+
+        std::cout << "numStation : " << numStation << std::endl;
 
 
 
@@ -304,8 +326,12 @@ public:
         for (int line_i = 0; line_i < numLines_; line_i++)
         {
             int sampleOffset = startSample + line_i * pulseLengthInSamples;
-            bitMask = static_cast<NIDAQ::uInt32> (1 << line_i);
-            waveform[sampleOffset] = bitMask;
+            for (int s = 0; s < pulseLengthInSamples; s++)
+            {
+                bitMask = static_cast<NIDAQ::uInt32> (1 << line_i);
+                waveform[sampleOffset + s] = bitMask;
+            }
+                
         }
 
         NIDAQ::int32 samplesWritten_dig = 0;
