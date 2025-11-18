@@ -10,6 +10,7 @@
 struct NeuroLayerSystemConfig
 {
     // Map each module -> list of lines
+    
     std::map<juce::String, juce::StringArray> columns ={}; // e.g. "PXI2" -> {"line0", "line1"}
     std::map<juce::String, juce::String> rows ={};    // e.g. "PXI2" -> {"Port0"}
     int numRows; // number of lines used in the digital Port

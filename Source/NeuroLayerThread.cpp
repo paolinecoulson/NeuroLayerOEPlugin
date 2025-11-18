@@ -106,7 +106,7 @@ void NeuroLayerThread::updateSettings (OwnedArray<ContinuousChannel>* continuous
 
                 ContinuousChannel::Settings settings {
                     ContinuousChannel::Type::ADC,
-                    "C" + String (ch / processor->getColumnNumber()) + ",R" + String (ch % processor->getRowNumber()),
+                    "C" + String (ch % processor->getColumnNumber()) + ",R" + String (ch / processor->getRowNumber()),
                     "Electrode",
                     "identifier",
                     bitVolts,

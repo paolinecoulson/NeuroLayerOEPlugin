@@ -97,9 +97,6 @@ public:
 
         if (taskHandle_ != 0)
             DAQmxCheck (NIDAQ::DAQmxStartTask (taskHandle_));
-
-
-
     }
 
     virtual void control()
@@ -231,25 +228,32 @@ public:
              DAQmx_Val_Rising); // Set Start Clock;
     }
 
-    void setClock (char* trigName, char* trigStart, int bufferSize)
+    void setClock (char* trigClock, char* trigStart, int bufferSize)
     {
+
+        char local_trigStart[256] = { "\0" };
+         char local_trigClock[256] = { "\0" };
+
+        GetTerminalNameWithDevPrefix (taskHandle_, "PXI_Trig2", local_trigStart);
+        NIDAQ::DAQmxConnectTerms (trigStart, local_trigStart, DAQmx_Val_DoNotInvertPolarity);
+
+        GetTerminalNameWithDevPrefix (taskHandle_, "PXI_Trig0", local_trigClock);
+        NIDAQ::DAQmxConnectTerms (trigClock, local_trigClock, DAQmx_Val_DoNotInvertPolarity);
 
         NIDAQ::DAQmxCfgSampClkTiming (
             taskHandle_,
-            trigName,
+            local_trigClock,
             getSampleRate(),
             DAQmx_Val_Rising,
             DAQmx_Val_ContSamps,
             bufferSize);
 
-
-        GetTerminalNameWithDevPrefix (taskHandle_, "PXI_Trig2", trigStart);
-
-        
          NIDAQ::DAQmxCfgDigEdgeStartTrig (
             taskHandle_,
-            trigStart,
+            local_trigStart,
             DAQmx_Val_Rising); // Set Start Clock;
+
+           std::cout << "Set clock for task AI: " << name_ << std::endl;
     }
 
     void acquire (std::vector<NIDAQ::float64>* ai_data, int buffer_size)
@@ -285,37 +289,43 @@ public:
           digitalPort_ (digitalPort),
           numLines_ (numLines) {}
 
-    void setup (char* trigName, char* trigStart, int buffer, int numStation)
+    void setup (char* trigClock, char* trigStart, int buffer, int numStation)
     {
         const int pulseLengthInSamples = 2;
         const int samplesPerStation = numLines_ * pulseLengthInSamples;
 
+        char local_trigStart[256] = { "\0" };
+        char local_trigClock[256] = { "\0" };
+
+
         std::cout << "numStation : " << numStation << std::endl;
 
-
-
         DAQmxCheck (NIDAQ::DAQmxCreateTask (STR2CHR ("DITask_" + name_), &taskHandle_));
+
+        GetTerminalNameWithDevPrefix (taskHandle_, "PXI_Trig2", local_trigStart);
+        NIDAQ::DAQmxConnectTerms (trigStart, local_trigStart, DAQmx_Val_DoNotInvertPolarity);
+
+        GetTerminalNameWithDevPrefix (taskHandle_, "PXI_Trig1", local_trigClock);
+        NIDAQ::DAQmxConnectTerms (trigClock, local_trigClock, DAQmx_Val_DoNotInvertPolarity);
+
         DAQmxCheck (NIDAQ::DAQmxCreateDOChan (taskHandle_,
                                               STR2CHR (name_ + "/port0"),
                                               "",
                                               DAQmx_Val_ChanForAllLines));
 
-        GetTerminalNameWithDevPrefix (taskHandle_, "PXI_Trig1", trigName);
-
         DAQmxCheck (NIDAQ::DAQmxCfgSampClkTiming (taskHandle_,
-                                                  trigName,
+                                                  trigClock,
                                                   getSampleRate() * 2,
                                                   DAQmx_Val_Rising,
                                                   DAQmx_Val_ContSamps,
                                                   buffer));
-
-        GetTerminalNameWithDevPrefix (taskHandle_, "PXI_Trig2", trigStart);
 
         NIDAQ::DAQmxCfgDigEdgeStartTrig (
             taskHandle_,
             trigStart,
             DAQmx_Val_Rising); // Set Start Clock;
 
+        std::cout << "Set clock for task DI: " << name_ << std::endl;
         DAQmxCheck (NIDAQ::DAQmxSetWriteRegenMode (taskHandle_, DAQmx_Val_AllowRegen));
 
         std::vector<NIDAQ::uInt32> waveform (samplesPerStation * numStation, 0);
@@ -361,9 +371,16 @@ public:
     EventDIChannel (String name, String digitalLine, int event_label)
         : Channel (name, 0), digitalLine_ (digitalLine), event_label_ (event_label) {}
 
-    void setup (char* trigName, char* trigStart, int buffer)
+    void setup (char* trigClock, char* trigStart, int buffer)
     {
         DAQmxCheck (NIDAQ::DAQmxCreateTask ("Event_DI_Task", &taskHandle_));
+        char local_trigStart[256] = { "\0" };
+        char local_trigClock[256] = { "\0" };
+        GetTerminalNameWithDevPrefix (taskHandle_, "PXI_Trig2", local_trigStart);
+        NIDAQ::DAQmxConnectTerms (trigStart, local_trigStart, DAQmx_Val_DoNotInvertPolarity);
+
+        GetTerminalNameWithDevPrefix (taskHandle_, "PXI_Trig0", local_trigClock);
+        NIDAQ::DAQmxConnectTerms (trigClock, local_trigClock, DAQmx_Val_DoNotInvertPolarity);
 
         DAQmxCheck (NIDAQ::DAQmxCreateDIChan (taskHandle_,
                                               STR2CHR (name_ + "/" + digitalLine_),
@@ -371,12 +388,12 @@ public:
                                               DAQmx_Val_ChanForAllLines));
 
         DAQmxCheck (NIDAQ::DAQmxCfgSampClkTiming (taskHandle_,
-                                                  trigName,
+                                                  trigClock,
                                                   getSampleRate(),
                                                   DAQmx_Val_Rising,
                                                   DAQmx_Val_ContSamps,
                                                   buffer));
-        GetTerminalNameWithDevPrefix (taskHandle_, "PXI_Trig2", trigStart);
+
         NIDAQ::DAQmxCfgDigEdgeStartTrig (
             taskHandle_,
             trigStart,
@@ -415,16 +432,26 @@ public:
     StartChannel (String name, String digitalLine, float start_time, int nbr_pulse, float pulse_duration)
         : Channel (name, 0), digitalLine_ (digitalLine), start_time_ (start_time), nbr_pulse_ (nbr_pulse), pulse_duration_ (pulse_duration) {}
 
-    void setup (char* trigName, char* trigStart)
+    void setup (char* trigClock, char* trigStart)
     {
         NIDAQ::float64 timeout = 5.0;
         float pulse_length = pulse_duration_ * getSampleRate();
         float pulse_start_length = start_time_ * getSampleRate();
 
+
         std::vector<NIDAQ::uInt32> waveform_start (pulse_length * (nbr_pulse_ * 2 + 1) + pulse_start_length, 0);
         LOGD (waveform_start.size());
 
         DAQmxCheck (NIDAQ::DAQmxCreateTask ("StartPulseTask", &taskHandle_));
+        char local_trigStart[256] = { "\0" };
+        char local_trigClock[256] = { "\0" };
+        GetTerminalNameWithDevPrefix (taskHandle_, "PXI_Trig2", local_trigStart);
+        NIDAQ::DAQmxConnectTerms (trigStart, local_trigStart, DAQmx_Val_DoNotInvertPolarity);
+
+        GetTerminalNameWithDevPrefix (taskHandle_, "PXI_Trig0", local_trigClock);
+        NIDAQ::DAQmxConnectTerms (trigClock, local_trigClock, DAQmx_Val_DoNotInvertPolarity);
+
+
         DAQmxCheck (NIDAQ::DAQmxCreateDOChan (taskHandle_,
                                               STR2CHR (name_ + "/" + digitalLine_),
                                               "",
@@ -432,14 +459,11 @@ public:
 
         LOGD (name_ + "/" + digitalLine_);
         DAQmxCheck (NIDAQ::DAQmxCfgSampClkTiming (taskHandle_,
-                                                  trigName,
+                                                  trigClock,
                                                   getSampleRate(),
                                                   DAQmx_Val_Rising,
                                                   DAQmx_Val_FiniteSamps,
                                                   waveform_start.size()));
-
-
-        GetTerminalNameWithDevPrefix (taskHandle_, "PXI_Trig2", trigStart);
                 
          NIDAQ::DAQmxCfgDigEdgeStartTrig (
             taskHandle_,
