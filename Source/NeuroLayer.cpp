@@ -178,12 +178,12 @@ void NeuroProcessor::run()
         char trig_start[256] = { "\0" };
 
         // Master: internal clock
-        AIdevices[0]->getClock (trig_clock_fs, trig_clock_2fs, trig_start, getNsample() * CHANNEL_BUFFER_SIZE * 10);
+        AIdevices[0]->getClock (trig_clock_fs, trig_clock_2fs, trig_start, getNsample() * getRowNumber() * 10);
 
         // Slaves: use master’s clock
         for (int dev_i = 1; dev_i < AIdevices.size(); dev_i++)
         {
-            AIdevices[dev_i]->setClock (trig_clock_fs, trig_start, getNsample() * CHANNEL_BUFFER_SIZE * 10);
+            AIdevices[dev_i]->setClock (trig_clock_fs, trig_start, getNsample() * getRowNumber() * 10);
         }
 
         /************************************/
@@ -192,12 +192,12 @@ void NeuroProcessor::run()
 
         for (int dev_i = 0; dev_i < DIdevices.size(); dev_i++)
         {
-            DIdevices[dev_i]->setup (trig_clock_2fs, trig_start, CHANNEL_BUFFER_SIZE * getNsample(), DIdevices.size());
+            DIdevices[dev_i]->setup (trig_clock_2fs, trig_start, getRowNumber() * getNsample(), DIdevices.size());
         }
 
         for (int dev_i = 0; dev_i < eventDevices.size(); dev_i++)
         {
-            eventDevices[dev_i]->setup (trig_clock_fs, trig_start, getNsample() * CHANNEL_BUFFER_SIZE * 10);
+            eventDevices[dev_i]->setup (trig_clock_fs, trig_start, getNsample() * getRowNumber()* 10);
         }
         startDevice->setup (trig_clock_fs, trig_start);
     }
@@ -282,12 +282,12 @@ void NeuroProcessor::run()
             
              for (size_t i = 0; i < numDevices; ++i)
             {
-                AIdevices[i]->acquire (&dev_ai_data[i], CHANNEL_BUFFER_SIZE * getNsample());
+                AIdevices[i]->acquire (&dev_ai_data[i],  getRowNumber() * getNsample());
             }
 
              for (size_t i = 0; i < eventDevices.size(); ++i)
             {
-                eventDevices[i]->acquire (&dev_di_event[i], getNsample() * CHANNEL_BUFFER_SIZE);
+                eventDevices[i]->acquire (&dev_di_event[i], getNsample() *  getRowNumber());
             }
              for (int nsample = 0; nsample < getNsample(); ++nsample)
             {
@@ -305,8 +305,8 @@ void NeuroProcessor::run()
                 for (size_t i = 0; i < eventDevices.size(); ++i)
                 {
                     bool isActive = std::accumulate (
-                                        dev_di_event[i].begin() + nsample * CHANNEL_BUFFER_SIZE,
-                                        dev_di_event[i].begin() + (nsample + 1) * CHANNEL_BUFFER_SIZE,
+                                        dev_di_event[i].begin() + nsample *  getRowNumber(),
+                                        dev_di_event[i].begin() + (nsample + 1) *  getRowNumber(),
                                         0.0)
                                     > 0;
 
