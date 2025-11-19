@@ -218,9 +218,10 @@ void NeuroLayerThread::setConfigFile (File config)
 
 void NeuroLayerThread::reloadConfig()
 {
-
     processor = std::make_unique<NeuroProcessor> (neuroConfig);
+    sourceBuffers.clear();
     sourceBuffers.add (new DataBuffer (processor->getCellNumber(), 10000));
+    LOGD(processor->getCellNumber())
     processor->aiBuffer = sourceBuffers.getLast();
     sourceStreams.clear();
 }
